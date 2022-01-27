@@ -66,68 +66,12 @@ const bubblezApproveBubbleBudz = async() => {
     await bubblez.approve(bubbleBudz, maxInt);
 };
 
-// BubbleBudz - Whitelist Mint
-const getMerkleProof = async() => {
-    const _senderAddress = await getAddress();
-    const _proof = await fetch(`${merkleProofSourceUrl}/${_senderAddress}`).then(res => res.text());
-    const _proofArray = _proof ? JSON.parse(_proof) : [];
-    return _proofArray;
-};
-const isWhitelisted = async() => {
-    const _merkleProof = await getMerkleProof();
-    const _isWhitelisted = await bubbleBudz.isWhitelisted(_merkleProof).catch(err => window.alert(err));
-
-    $("#mintButton").text(_isWhitelisted ? "Mint Bubble Budz" : "You are not Whitelisted!");
-    return _isWhitelisted;
-};
-const mintWhitelist = async() => {
-    const _whitelistMintEnabled = await bubbleBudz.whitelistMintIsEnabled();
-
-    if ( !_whitelistMintEnabled ) {
-        window.alert("Whitelist Mint is not enabled yet!");
-        return;
-    }
-
-    const _isWhitelisted = await isWhitelisted();
-    
-    if ( !_isWhitelisted ) {
-        window.alert("You are not Whitelisted!");
-        return;
-    };
-
-    const _mintAmount = $("#amountToMint").val();
-
-    if (1 > _mintAmount) {
-        window.alert("Please select quantity!");
-        return;
-    };
-
-    const _walletBalance = parseInt(await signer.getBalance());
-    const _mintPrice = parseInt(await bubbleBudz.mintPrice());
-    const _totalMintPrice = (_mintPrice * _mintAmount).toString();
-        console.log({_walletBalance, _totalMintPrice});
-
-    if (parseInt(_totalMintPrice) > _walletBalance) {
-        window.alert("Not enough balance!");
-        return;
-    };
-
-    const _merkleProof = await getMerkleProof();
-
-    const _gasLimit = await bubbleBudz.estimateGas.mintWhitelist(_merkleProof, _mintAmount, {value: _totalMintPrice}).catch( async(err_) => window.alert(err_));
-    const _oldGasLimit = _gasLimit.toString();
-    const _newGasLimit = parseInt((_gasLimit * 1.2)).toString();
-        console.log({_oldGasLimit, _newGasLimit});
-    
-    await bubbleBudz.mintWhitelist(_merkleProof, _mintAmount, {value: _totalMintPrice, gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
-};
-
 // Bubble Budz - Mint Public
-const mint = async() => {
-    const _publicMint = await bubbleProxy.publicMintEnabled();
+const claim = async() => {
+    const _publicClaim = await bubbleProxy.publicClaimEnabled();
 
-    if ( !_publicMint ) {
-        window.alert("Public Mint is not enabled yet!");
+    if ( !_publicClaim ) {
+        window.alert("Public Claim is not enabled yet!");
         return;
     };
 
@@ -138,140 +82,30 @@ const mint = async() => {
         return;
     };
 
-    const _walletBalance = parseInt(await signer.getBalance());
-    const _mintPrice = parseInt(await bubbleBudz.mintPrice());
-    const _totalMintPrice = (_mintPrice * _mintAmount).toString();
-        console.log({_walletBalance, _totalMintPrice});
-
-    if (parseInt(_totalMintPrice) > _walletBalance) {
-        window.alert("Not enough balance!");
-        return;
-    };
-
-    const _gasLimit = await bubbleProxy.estimateGas.mint(_mintAmount, {value: _totalMintPrice}).catch( async(err_) => window.alert(err_));
+    const _gasLimit = await bubbleProxy.estimateGas.claim(_mintAmount).catch( async(err_) => window.alert(err_));
     const _oldGasLimit = _gasLimit.toString();
     const _newGasLimit = parseInt((_gasLimit * 1.2)).toString();
         console.log({_oldGasLimit, _newGasLimit});
     
-    await bubbleProxy.mint(_mintAmount, {value: _totalMintPrice, gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
+    await bubbleProxy.mint(_mintAmount, {gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
 };
 
-// Bubble Budz - Mint With Bubblez
-const __mintWithBubblez = async(amount_) => {
-    const _gasLimit = await bubbleProxy.estimateGas.bubblezMint(amount_, {value: "0"}).catch( async(err_) => window.alert(err_));
-    const _oldGasLimit = _gasLimit.toString();
-    const _newGasLimit = parseInt((_gasLimit * 1.2)).toString();
-        console.log({_oldGasLimit, _newGasLimit});
-    
-    await bubbleProxy.bubblezMint(amount_, {value: "0", gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
-};
-const mintWithBubblez = async() => {
-    const _bubblezMint = await bubbleProxy.bubblezMintEnabled();
-
-    if ( !_bubblezMint ) {
-        window.alert("Bubblez Mint is not enabled yet!");
-        return;
-    };
-
-    if ( !bubblezMintAllowed ) {
-        window.alert("Free claim period still open!");
-        return;
-    };    
-
-    // we chain things here
-    const _signerAddress = await getAddress();
-    const _allowance = parseInt(await bubblez.allowance(_signerAddress, bubbleProxyAddress));
-
-    const _mintAmount = $("#amountToMint").val();
-    
-    if (1 > _mintAmount) {
-        window.alert("Please select quantity!");
-        return;
-    };
-
-    const _bubblezPrice = parseInt(await bubblez.bubblezPrice);
-    const _totalBubblezPrice = _bubblezPrice * _mintAmount;
-
-    if (_totalBubblezPrice > _allowance) {
-        console.log("Bubblez not approved... Requesting Approval");
-        await bubblez.approve(bubblProxyAddress, maxInt).then( async(tx_) => {
-            provider.once(tx_.hash, async(transaction_) => {
-                await __mintWithBubblez(_mintAmount);
-            });
-        });
-    } else {
-        console.log("Bubblez already approved... Minting!");
-        await __mintWithBubblez(_mintAmount);
-    };
-};
-
-// Bubble Budz Genesis - Migrate
-const __migrateBubbleBudzGenesis = async(tokenId_) => {
-    const _gasLimit = await bubbleBudzGenesis.estimateGas.migrateBubbleBudzGenesis(tokenId_).catch( async(err_) => window.alert(err_));
-    const _oldGasLimit = _gasLimit.toString();
-    const _newGasLimit = parseInt((_gasLimit * 1.2)).toString();
-        console.log({_oldGasLimit, _newGasLimit});
-    
-    await bubbleBudzGenesis.migrateBubbleBudzGenesis(tokenId_, {gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
-};
-const migrateBubbleBudzGenesis = async() => {
-    const _signerAddress = await getAddress();
-    const _isApprovedForAll = await IERC1155.isApprovedForAll(_signerAddress, bubbleBudzGenesisAddress);
-    const _openSeaTokenId = $("#migrateTokenId").val();
-    // console.log({_openSeaTokenId});
-    const _openSeaTokenOwned = await IERC1155.balanceOf(_signerAddress, _openSeaTokenId);
-    if (1 > _openSeaTokenOwned) {
-        window.alert("You do not own this OpenSea Token!");
-        return;
-    }
-
-    if ( !_isApprovedForAll ) {
-        console.log("OpenSea Storefront not approved... Requesting Approval");
-        await IERC1155.setApprovalForAll(bubbleBudzGenesisAddress, true).then( async(tx_) => {
-            provider.once(tx_.hash, async(transaction_) => {
-                await __migrateBubbleBudzGenesis(_openSeaTokenId);
-            });
-        });
-    } else {
-        console.log("OpenSea Storefront already approved... Migrating!");
-        await __migrateBubbleBudzGenesis(_openSeaTokenId);
-    }
-};
-
-// $BUBBLEZ Stuff
-const getTotalClaimableTokens = async() => {
-    return await bubblez.getTotalClaimableTokens(await getAddress());
-};
-const getTotalClaimableTokensInReadableFormat = async() => {
-    const _claimableTokens = await getTotalClaimableTokens();
-    const _claimabletokensFloat = parseFloat(_claimableTokens);
-    const _claimableTokensFormatted = (parseFloat(formatEther(_claimableTokens))).toFixed(2);
-    console.log({_claimableTokens, _claimabletokensFloat, _claimableTokensFormatted});
-    return _claimableTokensFormatted;
-};
-const claimTokens = async() => {
-    await bubblez.claimTokensForSelf();
-};
-
-// Workers
-function updateBubblezPrice() {
-    let basePrice = 140;
-    let amountToMint = $("#amountToMint").val();
-    let totalPrice = (basePrice * amountToMint);
-    $("#price").text(`${totalPrice} $BUBBLEZ`);
-}
-
-var bubblezMintAllowed;
+var mintedOut = false;
 
 const updateInfo = async() => {
-    $("#bubblezBalance").text(`${(formatEther(await bubblez.balanceOf(await getAddress()))).toLocaleString(2)}`);
-    $("#bubblezPending").text(`${await getTotalClaimableTokensInReadableFormat()}`);
-    $("#genesisBalance").text(`${await bubbleBudzGenesis.balanceOf(await getAddress())}`);
     $("#account").text(`${(await getAddress()).substr(0,9)}..`); 
-    let bubblezMinted = (await bubbleBudz.totalSupply()) - 5000;
-    bubblezMintAllowed = bubblezMinted >= 0 ? true : false;
-    $("#mintedCount").text(bubblezMinted >= 0 ? `${bubblezMinted} / 1,000` : `0 / 1,000`);
+    let bubblezMinted = await bubbleBudz.totalSupply();
+    if (bubblezMinted >= 5000) {
+        if (!mintedOut) {
+            mintedOut = true;
+            $("#mintbutton").remove();
+            $("#mint-form").remove();
+            $("#mint-section").append(`<div style="margin: auto;width=100%"><h1 class="heading-2-copy">No Free Budz Remaining!</h1></div>`);    
+        }
+    } 
+    $("#mintedCount").text(bubblezMinted < 5000 ? `${bubblezMinted} / 5,000` : `5,000 / 5,000`);
 };
+
 setInterval( async() => {
     await updateInfo();
 }, 5000)
