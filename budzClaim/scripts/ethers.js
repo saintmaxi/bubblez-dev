@@ -75,6 +75,12 @@ const claim = async() => {
         return;
     };
 
+    const userClaimed = Number(await bubbleProxy.addressToClaimedBB(await getAddress()));
+    if ( userClaimed >= 4 ) {
+        window.alert("You've already claimed the maximum of 4 free Budz!");
+        return;
+    };
+    
     if (mintedOut ) {
         window.alert("No free Budz remaining! Mint remaining with $BUBBLEZ.");
         return;
@@ -86,6 +92,11 @@ const claim = async() => {
         window.alert("Please select quantity!");
         return;
     };
+
+    if (userClaimed + _mintAmount > 4) {
+        window.alert(`You can only claim ${4 - userClaimed} more free Budz!`);
+        return;
+    }
 
     const _gasLimit = await bubbleProxy.estimateGas.claim(_mintAmount).catch( async(err_) => window.alert(err_));
     const _oldGasLimit = _gasLimit.toString();
