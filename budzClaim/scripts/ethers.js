@@ -75,6 +75,11 @@ const claim = async() => {
         return;
     };
 
+    if (mintedOut ) {
+        window.alert("No free Budz remaining! Mint remaining with $BUBBLEZ.");
+        return;
+    };
+
     const _mintAmount = $("#amountToMint").val();
 
     if (1 > _mintAmount) {
@@ -87,7 +92,7 @@ const claim = async() => {
     const _newGasLimit = parseInt((_gasLimit * 1.2)).toString();
         console.log({_oldGasLimit, _newGasLimit});
     
-    await bubbleProxy.mint(_mintAmount, {gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
+    await bubbleProxy.claim(_mintAmount, {gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
 };
 
 var mintedOut = false;
@@ -100,7 +105,7 @@ const updateInfo = async() => {
             mintedOut = true;
             $("#mintbutton").remove();
             $("#mint-form").remove();
-            $("#mint-section").append(`<div style="margin: auto;width=100%"><h1 class="heading-2-copy">No Free Budz Remaining!</h1></div>`);    
+            $("#mint-section").append(`<div style="margin: auto;width=100%;text-align:center;"><h1 class="heading-2-copy">No Free Budz Remaining!<br><br>Mint remaining with $BUBBLEZ.</h1></div>`);    
         }
     } 
     $("#mintedCount").text(bubblezMinted < 5000 ? `${bubblezMinted} / 5,000` : `5,000 / 5,000`);
