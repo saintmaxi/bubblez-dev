@@ -68,12 +68,12 @@ const bubblezApproveBubbleBudz = async() => {
 
 // Bubble Budz - Mint With Bubblez
 const __mintWithBubblez = async(amount_) => {
-    const _gasLimit = await bubbleProxy.estimateGas.bubblezMint(amount_, {value: "0"}).catch( async(err_) => window.alert(err_));
+    const _gasLimit = await bubbleProxy.estimateGas.bubblezMint(amount_).catch( async(err_) => window.alert(err_));
     const _oldGasLimit = _gasLimit.toString();
     const _newGasLimit = parseInt((_gasLimit * 1.2)).toString();
         console.log({_oldGasLimit, _newGasLimit});
     
-    await bubbleProxy.bubblezMint(amount_, {value: "0", gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
+    await bubbleProxy.bubblezMint(amount_, {gasLimit: _newGasLimit}).then( async(tx_) => await waitForTransaction(tx_)).catch( async(err_) => window.alert(err_));
 };
 const mintWithBubblez = async() => {
     const _bubblezMint = await bubbleProxy.bubblezMintEnabled();
